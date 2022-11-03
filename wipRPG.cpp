@@ -2,19 +2,25 @@
 #include <string>
 #include <cstdlib>
 #include <array>
+#include <math.h>
 using namespace std;
 
 class Enemies {
     private:
         string enemyList[2] = 
-            {"2->Rat->10->Scratch->1->10->1->Bite->2->5->1->end", "2->Bat->12->Bite->2->5->1->Screech->1->3->2->end"};
-        //List contains number of attacks, name, hp, attack name, attack damage
+            {"2->1->Rat->10->4->Scratch->1->10->1->Bite->2->5->1->Sustenance->1->80->end", "2->1->Bat->12->6->Bite->2->5->1->Screech->1->3->2->Sustenance->1->70->end"};
+        //List contains number of attacks, number of drops, name, hp, xp dropped
+        //attack name, attack damage
         //probability to miss for each attack, and probability to crit (deal double damage) for each attack
+        //Drop names, ids, and probabilities added
 
         string name;
         int hp;
         int attackCount;
         string* attackArray = new string[16];
+        int xpDropped;
+        int dropCount;
+        string* dropArray = new string[4];
 
     public:
         void setName(string n){
@@ -46,11 +52,32 @@ class Enemies {
             return attackArray[index];
         }
 
+        void setXPDropped(int x) {
+            xpDropped = x;
+        }
+        int getXPDropped() {
+            return xpDropped;
+        }
+
+        void setDropCount(int d){
+            dropCount = d;
+        }
+        int getDropCount(){
+            return dropCount;
+        }
+
+        void setDropArray(string info, int index) {
+            dropArray[index] = info;
+        }
+        string getDropArray(int index){
+            return dropArray[index];
+        }
+
         string* setEnemy(int playerLevel) {
             srand((unsigned) time(NULL));
             int enemyIndexRange = 2; //With more enemies later, it'll be calculated with more math
             string enemyIndex = enemyList[rand() % enemyIndexRange];
-            const int infoArraySize = 4 + (((int)enemyIndex[0]) * 4);
+            const int infoArraySize = 5 + (((int)enemyIndex[0]) * 4) + (((int)enemyIndex[3])*2);
 
             string* enemyInfo = new string[infoArraySize];
             string delimiter = "->";
@@ -73,6 +100,7 @@ class Player {
         int level;
         string* actionInfo = new string[4];
         int hp;
+        int maxHP;
         string* output = new string[2];
 
     public:
@@ -105,30 +133,112 @@ class Player {
             return hp;
         }
 
+        void setMaxHP(int max) {
+            maxHP = max;
+        }
+        int getMaxHP() {
+            return maxHP;
+        }
+
         void setOutput(string damage, string status) {
             output[0] = damage;
             output[1] = status;
         }
+
+        Player checkLevel(int currentXP, int currentLevel, Player player) {
+            if (currentXP >= pow((currentLevel)/0.5, 1.5)) {
+                player.setLevel(player.getLevel() + 1);
+                player.setMaxHP(pow(player.getLevel(), 2) + 19);
+                player.setHP(player.getMaxHP());
+                cout << "Congrats! You are now Level " << player.getLevel() << "!\n";
+                cout << "You now have " << player.getMaxHP() << " HP!\n"; 
+            }
+            return player;
+        }
+};
+
+class Items {
+    private:
+        //string itemName;
+        int itemList [4] = {0,0,0,0};
+    public:
+        Player useItem(Player player, Items item, int itemID, int index) {
+            switch(itemID){
+                case 1:
+                    if (player.getHP() + 10 > player.getMaxHP()) {
+                        player.setHP(player.getMaxHP());
+                        cout << "You're now at max HP!\n";
+                    } else {
+                        player.setHP(player.getHP() + 10);
+                        cout << "You regained 10 HP!\n";
+                    }
+                    break;
+            }
+
+            if(index > -1) {
+                for(int i = 0; i < sizeof(itemList); i++) {
+                    if(itemList[i] == itemID) {
+                        for(int j = i; j < sizeof(itemList) - 1;j++) {
+                            if(itemList[i+1] >=0 ) {
+                                itemList[i] = itemList[i+1];
+                            }
+                        }
+                    }
+                }
+            }
+            return player;
+        }
+
+        void setItemList(Player player, int itemID) {
+            for(int i = 0; i < sizeof(itemList); i++) {
+                if(itemList[i] == 0) {
+                    itemList[i] = itemID;
+                    break;
+                }
+            }
+        }
+        string printItemList(int index) {
+            string itemName;
+            switch(itemList[index]){
+                case 1:
+                    itemName = "Sustenance";
+                    break;
+            }
+            return itemName;
+        }
+
+        /*int getItemID(string itemName) {
+            return ID;            
+        }*/
 };
 
 class Battle {
     private:
         int playerLevel;
         int playerXP;
-        void battleLoop(Player player) {
+        void battleLoop(Player player, Items item) {
             int enemyCount = rand() % 4 + 1;
             Enemies* enemies = new Enemies[enemyCount];
             
             cout << "Zoo wee mama! ";
             for(int i = 0; i < enemyCount; i++) {
                 string* enemyInfo = enemies[i].setEnemy(playerLevel);
-                enemies[i].setName(enemyInfo[1]);
-                enemies[i].setHP(stoi(enemyInfo[2]));
+                enemies[i].setName(enemyInfo[2]);
+                enemies[i].setHP(stoi(enemyInfo[3]));
+                enemies[i].setXPDropped(stoi(enemyInfo[4]));
+
                 enemies[i].setAttackCount(stoi(enemyInfo[0]));
                 int x = enemies[i].getAttackCount()*4;
                 for(int j = 0; j < x; j++){
-                    enemies[i].setAttackArray(enemyInfo[j+3], j);
+                    enemies[i].setAttackArray(enemyInfo[j+5], j);
                 }
+
+                enemies[i].setDropCount(stoi(enemyInfo[1]));
+                int d = enemies[i].getDropCount()*3;
+                for(int k = 0; k < d; k++) {
+                    enemies[i].setDropArray(enemyInfo[k+5+x], k);
+                }
+
                 cout << enemies[i].getName();
                 if(i < enemyCount-2 && enemyCount > 2){
                     cout << ", ";
@@ -179,7 +289,26 @@ class Battle {
                                         }
 
                                         if(enemies[0].getHP() <= 0){
+                                            int chosenDrop = rand() % enemies[0].getDropCount();
+                                            int dropChance = rand() % 100 + 1;
                                             cout << "You defeated " << enemies[0].getName() << "!\n";
+                                            if(dropChance <= stoi(enemies[0].getDropArray(chosenDrop*2 + 2))){
+                                                cout << "It dropped " << enemies[0].getDropArray(chosenDrop*2) << "! Would you like to use it or add it to your items? \n1. Use it now\n2. Add to Items\n";
+                                                int dropChoice;
+                                                cin >> dropChoice;
+
+                                                switch(dropChoice) {
+                                                    case 1:
+                                                        player = item.useItem(player, item, stoi(enemies[0].getDropArray((chosenDrop*3)+1)), -1);
+                                                        break;
+                                                    case 2:
+                                                        item.setItemList(player, stoi(enemies[0].getDropArray((chosenDrop*3)+1)));
+                                                        break;
+                                                }   
+                                            }
+
+                                            player.setXP(player.getXP() + enemies[0].getXPDropped());
+                                            player = player.checkLevel(player.getXP(), player.getLevel(), player);
 
                                             for(int i=0;i < enemyCount - 1;i++) {
                                                 enemies[i] = enemies[i+1];
@@ -203,7 +332,26 @@ class Battle {
                                             }
 
                                             if(enemies[1].getHP() <= 0){
-                                                cout << "You defeated " << enemies[1].getName() << "\n";
+                                                int chosenDrop = rand() % enemies[1].getDropCount();
+                                                int dropChance = rand() % 100 + 1;
+                                                cout << "You defeated " << enemies[1].getName() << "!\n";
+                                                if(dropChance <= stoi(enemies[1].getDropArray(chosenDrop*3 + 2))){
+                                                    cout << "It dropped " << enemies[1].getDropArray(chosenDrop*2) << "! Would you like to use it or add it to your items? \n1. Use it now\n2. Add to Items\n";
+                                                    int dropChoice;
+                                                    cin >> dropChoice;
+
+                                                    switch(dropChoice) {
+                                                        case 1:
+                                                            player = item.useItem(player, item, stoi(enemies[1].getDropArray((chosenDrop*3)+1)), -1);
+                                                            break;
+                                                        case 2:
+                                                            item.setItemList(player, stoi(enemies[1].getDropArray((chosenDrop*3)+1)));
+                                                            break;
+                                                    }   
+                                                }
+
+                                                player.setXP(player.getXP() + enemies[1].getXPDropped());
+                                                player = player.checkLevel(player.getXP(), player.getLevel(), player);
 
                                                 for(int i=1;i < enemyCount - 1;i++) {
                                                     enemies[i] = enemies[i+1];
@@ -228,9 +376,28 @@ class Battle {
                                             }
 
                                             if(enemies[2].getHP() <= 0){
-                                                cout << "You defeated " << enemies[2].getName() << "\n";
+                                                int chosenDrop = rand() % enemies[2].getDropCount();
+                                                int dropChance = rand() % 100 + 1;
+                                                cout << "You defeated " << enemies[2].getName() << "!\n";
+                                                if(dropChance <= stoi(enemies[2].getDropArray(chosenDrop*3 + 2))){
+                                                    cout << "It dropped " << enemies[2].getDropArray(chosenDrop*2) << "! Would you like to use it or add it to your items? \n1. Use it now\n2. Add to Items\n";
+                                                    int dropChoice;
+                                                    cin >> dropChoice;
 
-                                                for(int i=1;i < enemyCount - 1;i++) {
+                                                    switch(dropChoice) {
+                                                        case 1:
+                                                            player = item.useItem(player, item, stoi(enemies[2].getDropArray((chosenDrop*3)+1)), -1);
+                                                            break;
+                                                        case 2:
+                                                            item.setItemList(player, stoi(enemies[2].getDropArray((chosenDrop*3)+1)));
+                                                            break;
+                                                    }   
+                                                }
+
+                                                player.setXP(player.getXP() + enemies[2].getXPDropped());
+                                                player = player.checkLevel(player.getXP(), player.getLevel(), player);
+
+                                                for(int i=2;i < enemyCount - 1;i++) {
                                                     enemies[i] = enemies[i+1];
                                                 }
 
@@ -253,9 +420,28 @@ class Battle {
                                             }
 
                                             if(enemies[3].getHP() <= 0){
-                                                cout << "You defeated " << enemies[3].getName() << "\n";
+                                                int chosenDrop = rand() % enemies[3].getDropCount();
+                                                int dropChance = rand() % 100 + 1;
+                                                cout << "You defeated " << enemies[3].getName() << "!\n";
+                                                if(dropChance <= stoi(enemies[3].getDropArray(chosenDrop*3 + 2))){
+                                                    cout << "It dropped " << enemies[3].getDropArray(chosenDrop*2) << "! Would you like to use it or add it to your items? \n1. Use it now\n2. Add to Items\n";
+                                                    int dropChoice;
+                                                    cin >> dropChoice;
 
-                                                for(int i=1;i < enemyCount - 1;i++) {
+                                                    switch(dropChoice) {
+                                                        case 1:
+                                                            player = item.useItem(player, item, stoi(enemies[3].getDropArray((chosenDrop*3)+1)), -1);
+                                                            break;
+                                                        case 2:
+                                                            item.setItemList(player, stoi(enemies[3].getDropArray((chosenDrop*3)+1)));
+                                                            break;
+                                                    }   
+                                                }
+
+                                                player.setXP(player.getXP() + enemies[3].getXPDropped());
+                                                player = player.checkLevel(player.getXP(), player.getLevel(), player);
+
+                                                for(int i=3;i < enemyCount - 1;i++) {
                                                     enemies[i] = enemies[i+1];
                                                 }
 
@@ -265,6 +451,21 @@ class Battle {
                                         break;
                                 }
                                 break;
+                        }
+                        break;
+                    case 2:
+                        break;
+                    case 3:
+                        for(int i = 0; i < 4; i++) {
+                            cout << i+1 << ". " << item.printItemList(i) << "\n";
+                        }
+                        int itemChoice;
+                        cin >> itemChoice;
+
+                        switch(itemChoice) {
+                            case 1:
+                                player = item.useItem(player, item, 1, 0);
+                                    break;
                         }
                         break;
                 }
@@ -291,15 +492,15 @@ class Battle {
             }
 
             if(enemyCount <= 0){
-                endBattle(player, 'w');
+                endBattle(player, 'w', item);
             }
             if(player.getHP() <= 0){
-                endBattle(player, 'l');
+                endBattle(player, 'l', item);
             }
             
         }
 
-        void endBattle(Player player, char endCondition) {
+        void endBattle(Player player, char endCondition, Items item) {
             Battle battle;
             char playAnswer;
             switch(endCondition) {
@@ -309,7 +510,7 @@ class Battle {
                     switch(playAnswer){
                         case 'y':
                             cout << "\nHave Fun!\n";
-                            battle.battleLoop(player);
+                            battle.battleLoop(player, item);
                             break;
                         case 'n':
                             cout << "\nBye!";
@@ -334,15 +535,17 @@ class Battle {
     public:
         void gameStart(){
             Player player;
+            Items item;
             player.setLevel(1);
             player.setXP(0);
             player.setActionInfo("Bash", 0);
             player.setActionInfo("4", 1);
             player.setActionInfo("1", 2);
             player.setActionInfo("1", 3);
-            player.setHP(20);
+            player.setMaxHP(20);
+            player.setHP(player.getMaxHP());
             //add player classes later? (fighter, mage, etc.)
-            battleLoop(player);
+            battleLoop(player, item);
         }
 };
 
